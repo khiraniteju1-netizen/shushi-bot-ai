@@ -5,6 +5,24 @@ import datetime
 import requests
 import os
 import time
+from flask import Flask
+from threading import Thread
+
+# --- WEB SERVER FOR RENDER (KEEP ALIVE) ---
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "Shushi AI is Live!"
+
+def run():
+    # Render provides a PORT environment variable automatically
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port)
+
+def keep_alive():
+    t = Thread(target=run)
+    t.start()
 
 # --- CONFIGURATION ---
 API_TOKEN = '8679668152:AAEpAbyM_LhbOMsqRgcQdpJw_kpCnkMnwpQ'
@@ -58,7 +76,6 @@ def callback_query(call):
         
         elif call.data == "show_plans":
             markup = types.InlineKeyboardMarkup()
-            # --- UPDATED PLAN BUTTONS ---
             markup.add(types.InlineKeyboardButton(f"⚡ 1 Day (20 Voices) - ₹30", callback_data="plan_1"))
             markup.add(types.InlineKeyboardButton(f"💎 1 Week (100 Voices) - ₹150", callback_data="plan_7"))
             markup.add(types.InlineKeyboardButton(f"🔥 1 Month (350 Voices) - ₹700", callback_data="plan_30"))
@@ -81,7 +98,6 @@ def callback_query(call):
             c.execute("SELECT selected_plan FROM users WHERE user_id=?", (uid,))
             res = c.fetchone()
             days = res[0] if (res and res[0]) else 1
-            # --- UPDATED APPROVAL LIMITS ---
             limit = LIMITS.get(days, 20)
             expiry_date = (datetime.datetime.now() + datetime.timedelta(days=days)).strftime('%Y-%m-%d %H:%M:%S')
             
@@ -141,29 +157,6 @@ def voice_engine(message):
 
 if __name__ == "__main__":
     init_db()
-    while True:
-        try: bot.infinity_polling(timeout=20)
-        except: time.sleep(5)
-from flask import Flask
-from threading import Thread
-
-app = Flask('')
-
-@app.route('/')
-def home():
-    return "I am alive!"
-
-def run():
-  app.run(host='0.0.0.0',port=8080)
-
-def keep_alive():
-    t = Thread(target=run)
-    t.start()
-
-# --- BAaki Aapka Purana Code Yahan Se Shuru Hoga ---
-# ... (Bot ka logic) ...
-
-if __name__ == "__main__":
-    init_db()
-    keep_alive() # Yeh line server start karegi
-    bot.infinity_polling()
+    keep_alive() # Starts the web server
+    # skip_pending ensures no conflict with old sessions
+    bot.infinity_polling(timeout=20, skip_pending=True)
