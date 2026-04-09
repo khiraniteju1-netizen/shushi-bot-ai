@@ -8,33 +8,41 @@ import time
 from flask import Flask
 from threading import Thread
 
-# --- WEB SERVER FOR RENDER (KEEP ALIVE) ---
+# ==========================================
+# 1. WEB SERVER FOR RENDER (UptimeRobot support)
+# ==========================================
 app = Flask('')
 
 @app.route('/')
 def home():
-    return "Shushi AI is Live!"
+    return "Shushi AI is Live and Running!"
 
 def run():
-    # Render provides a PORT environment variable automatically
-    port = int(os.environ.get("PORT", 8080))
+    # Render automatically sets the PORT environment variable
+    port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
 
 def keep_alive():
     t = Thread(target=run)
+    t.daemon = True # Background thread
     t.start()
 
-# --- CONFIGURATION ---
+# ==========================================
+# 2. CONFIGURATION
+# ==========================================
 API_TOKEN = '8679668152:AAEpAbyM_LhbOMsqRgcQdpJw_kpCnkMnwpQ'
 ADMIN_ID = 8339811190
 ELEVENLABS_KEY = 'sk_7e27f8b3c72b1901e537ccb5067781aa049c64767d36a29d'.strip()
 CHANNEL_LINK = "https://t.me/shushi_ai_official"
 
-# --- UPDATED LIMITS AS PER YOUR REQUEST ---
+# Updated Limits
 LIMITS = {1: 20, 7: 100, 30: 350}
 
 bot = telebot.TeleBot(API_TOKEN)
 
+# ==========================================
+# 3. DATABASE LOGIC
+# ==========================================
 def init_db():
     conn = sqlite3.connect('shushi_pro_original.db')
     c = conn.cursor()
@@ -55,6 +63,9 @@ def get_available_voice():
     except: pass
     return None
 
+# ==========================================
+# 4. BOT HANDLERS
+# ==========================================
 @bot.message_handler(commands=['start'])
 def start(message):
     markup = types.InlineKeyboardMarkup()
@@ -62,7 +73,9 @@ def start(message):
     btn_agree = types.InlineKeyboardButton("✅ I Agree", callback_data="agree")
     markup.add(btn_subscribe)
     markup.add(btn_agree)
-    bot.send_photo(message.chat.id, 'AgACAgUAAxkBAAID3WnUc6mdxNTt32EVzNZnogoU7PPtAAKgDmsbB3mhViL-_CXCG7EWAQADAgADeAADOwQ', caption="🌟 **Welcome to Shushi AI!**\n\nConvert voices to Indian Girl voice. Choose a plan to start!", parse_mode="Markdown", reply_markup=markup)
+    bot.send_photo(message.chat.id, 'AgACAgUAAxkBAAID3WnUc6mdxNTt32EVzNZnogoU7PPtAAKgDmsbB3mhViL-_CXCG7EWAQADAgADeAADOwQ', 
+                   caption="🌟 **Welcome to Shushi AI!**\n\nConvert voices to Indian Girl voice. Choose a plan to start!", 
+                   parse_mode="Markdown", reply_markup=markup)
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
@@ -72,7 +85,8 @@ def callback_query(call):
             markup = types.InlineKeyboardMarkup()
             markup.add(types.InlineKeyboardButton("🔊 Check Demo on Channel", url=CHANNEL_LINK))
             markup.add(types.InlineKeyboardButton("💎 Choose Plan", callback_data="show_plans"))
-            bot.send_photo(call.message.chat.id, 'AgACAgUAAxkBAAID5GnUdT6JV-YEpqiCLEMOSWVvb8KLAAKjDmsbB3mhVvZy4jWJ3LeHAQADAgADeAADOwQ', caption="Premium plan lene ke liye niche button dabayein! 😍", reply_markup=markup)
+            bot.send_photo(call.message.chat.id, 'AgACAgUAAxkBAAID5GnUdT6JV-YEpqiCLEMOSWVvb8KLAAKjDmsbB3mhVvZy4jWJ3LeHAQADAgADeAADOwQ', 
+                           caption="Premium plan lene ke liye niche button dabayein! 😍", reply_markup=markup)
         
         elif call.data == "show_plans":
             markup = types.InlineKeyboardMarkup()
@@ -88,7 +102,11 @@ def callback_query(call):
             c.execute("INSERT OR REPLACE INTO users (user_id, selected_plan, used_count, total_limit) VALUES (?, ?, 0, 0)", (user_id, days))
             conn.commit()
             conn.close()
-            qr_map = {1: 'AgACAgUAAxkBAAMEadDd39cuX1OyBFAJUpLjt3N4fUoAAq4Oaxuf9IlWWtbv1akAAVSUAQADAgADeQADOwQ', 7: 'AgACAgUAAxkBAAMFadDd--nSZq61MqUKllvu1Y4c_JoAArEOaxuf9IlWtzGR3YpHzXYBAAMCAAN5AAM7BA', 30: 'AgACAgUAAxkBAAMGadDeEEXHbE5HmVpu-mDo5l9nQL0AArMOaxuf9IlWprNA-dcQZpcBAAMCAAN5AAM7BA'}
+            qr_map = {
+                1: 'AgACAgUAAxkBAAMEadDd39cuX1OyBFAJUpLjt3N4fUoAAq4Oaxuf9IlWWtbv1akAAVSUAQADAgADeQADOwQ', 
+                7: 'AgACAgUAAxkBAAMFadDd--nSZq61MqUKllvu1Y4c_JoAArEOaxuf9IlWtzGR3YpHzXYBAAMCAAN5AAM7BA', 
+                30: 'AgACAgUAAxkBAAMGadDeEEXHbE5HmVpu-mDo5l9nQL0AArMOaxuf9IlWprNA-dcQZpcBAAMCAAN5AAM7BA'
+            }
             bot.send_photo(call.message.chat.id, qr_map[days], caption=f"✅ Plan Selected: {LIMITS[days]} Voices.\n\nIS QR PAR PAY KAREIN AUR SCREENSHOT BHEJEIN.")
         
         elif call.data.startswith("approve_"):
@@ -107,7 +125,7 @@ def callback_query(call):
             bot.send_message(uid, f"🎉 Payment Success! Access Granted.\nTotal Voices: {limit}\nValid till: {expiry_date}")
             bot.edit_message_caption(f"✅ Approved {uid} for {limit} voices", call.message.chat.id, call.message.message_id)
             
-    except Exception as e: print(f"Error: {e}")
+    except Exception as e: print(f"Error in Callback: {e}")
 
 @bot.message_handler(content_types=['photo'])
 def handle_screenshot(message):
@@ -141,7 +159,10 @@ def voice_engine(message):
             voice_id = get_available_voice()
             file_info = bot.get_file(message.voice.file_id)
             audio_data = bot.download_file(file_info.file_path)
-            res = requests.post(f"https://api.elevenlabs.io/v1/speech-to-speech/{voice_id}", headers={"xi-api-key": ELEVENLABS_KEY}, files={"audio": ("v.ogg", audio_data, "audio/ogg")}, data={"model_id": "eleven_multilingual_sts_v2"})
+            res = requests.post(f"https://api.elevenlabs.io/v1/speech-to-speech/{voice_id}", 
+                                headers={"xi-api-key": ELEVENLABS_KEY}, 
+                                files={"audio": ("v.ogg", audio_data, "audio/ogg")}, 
+                                data={"model_id": "eleven_multilingual_sts_v2"})
             if res.status_code == 200:
                 c.execute("UPDATE users SET used_count = used_count + 1 WHERE user_id=?", (user_id,))
                 conn.commit()
@@ -150,13 +171,18 @@ def voice_engine(message):
                 with open(file_name, 'rb') as audio:
                     bot.send_audio(message.chat.id, audio, caption="✨ Shushi AI Result")
                 os.remove(file_name)
-        except: pass
+        except Exception as e:
+            print(f"Voice Processing Error: {e}")
     else:
         bot.reply_to(message, "❌ Plan Expired ya Limit khatam! Naya plan khareedein.")
     conn.close()
 
+# ==========================================
+# 5. RUN BOT
+# ==========================================
 if __name__ == "__main__":
     init_db()
-    keep_alive() # Starts the web server
-    # skip_pending ensures no conflict with old sessions
+    keep_alive() # Starts Flask Web Server
+    print("Bot is starting on Render...")
+    # skip_pending=True ignores old messages to avoid 409 Conflict
     bot.infinity_polling(timeout=20, skip_pending=True)
